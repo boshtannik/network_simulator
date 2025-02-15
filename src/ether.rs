@@ -1,10 +1,10 @@
-use crate::device::IODriver;
+use crate::device::IODriverSimulator;
 
-pub struct Ether<IODrv: IODriver> {
+pub struct Ether<IODrv: IODriverSimulator> {
     devices: Vec<IODrv>,
 }
 
-impl<IODrv: IODriver> Ether<IODrv> {
+impl<IODrv: IODriverSimulator> Ether<IODrv> {
     pub fn new() -> Self {
         Self {
             devices: Vec::new(),
