@@ -1,22 +1,16 @@
 use crate::device::IODriverSimulator;
 
-pub struct Ether<IODrv: IODriverSimulator> {
-    devices: Vec<IODrv>,
+pub struct Ether<'a, IODrv: IODriverSimulator> {
+    devices: &'a mut [&'a mut IODrv],
 }
 
-impl<IODrv: IODriverSimulator> Ether<IODrv> {
-    pub fn new() -> Self {
-        Self {
-            devices: Vec::new(),
-        }
+impl<'a, IODrv: IODriverSimulator> Ether<'a, IODrv> {
+    pub fn new(devices: &'a mut [&'a mut IODrv]) -> Self {
+        Self { devices }
     }
 
-    pub fn add_device(&mut self, device: IODrv) {
-        self.devices.push(device);
-    }
-
-    /// Gets the broadcasted byte from any device.
-    /// That is the place where the collisions are simulated.
+    /// Gets the broadcasted byte from latest broadasting device.
+    /// That is the place where the data collision is possible.
     fn get_current_byte(&mut self) -> Option<u8> {
         let mut result: Option<u8> = None;
 
@@ -29,25 +23,11 @@ impl<IODrv: IODriverSimulator> Ether<IODrv> {
         result
     }
 
-    fn start_tick(&mut self) {
-        for device in self.devices.iter_mut() {
-            device.start_tick();
-        }
-    }
-
-    fn end_tick(&mut self) {
-        for device in self.devices.iter_mut() {
-            device.end_tick();
-        }
-    }
-
-    pub fn update(&mut self) {
-        self.start_tick();
+    pub fn simulate(&mut self) {
         if let Some(current_byte) = self.get_current_byte() {
             for device in self.devices.iter_mut() {
                 device.put_to_device_network_side(current_byte);
             }
         }
-        self.end_tick();
     }
 }

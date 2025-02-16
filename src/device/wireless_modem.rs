@@ -1,58 +1,62 @@
 use std::collections::VecDeque;
 
 use super::IODriverSimulator;
-// Diagram of a full-duplex device, probably modem
-// Is made to picture the idea of internal quques connectivities.
-//
-//```
-//                  o             o
-//                  | TX          | RX
-//  +---------------|-------------|--------+
-//  | Modem Device  |             |        |
-//  |       +-------+             |        |
-//  |       |                     |        |
-//  | (T byte to netw)  (T byte from netw) |
-//  |       |                     |        |
-//  |       +--<-- To net buffer <----+    |
-//  |                             |   |    |
-//  |                             |   |    |
-//  |                             |   |    |
-//  |    +<---<- From net buffer <+   |    |
-//  |    |                            |    |
-//  |    |                            |    |
-//  |    |                            |    |
-//  |    |                            |    |
-//  |  TX pin                     RX pin   |
-//  +--------------------------------------+
-//       |                            |
-//       |                            |
-//       |                            |
-//       o                            o
-//```
-//
-pub struct WiredModuleDriver {
-    from_network_buffer: VecDeque<u8>,
-    to_network_buffer: VecDeque<u8>,
-    tick_byte_to_network: Option<u8>,
-    tick_byte_from_network: Option<u8>,
+
+enum AntennaState {
+    Transmit(u8),
+    Receive(u8),
+    Idle,
 }
 
-impl WiredModuleDriver {
+//  Diagram of a half-duplex device, probably radio driver, or single wired transceiver
+//  Is made to picture the idea of internal quques connectivities.
+//
+//```
+//                (Network side)
+//                       \|/
+//                        |  - Antenna
+//                        |
+//   +--------------------|-----------------+
+//   | Wireless Device     +-+-+               |
+//   |                  \   \               |
+//   |        +------>--+   +-->--+         |
+//   |        |                   |         |
+//   |        +-<-   to_ether  -<---+       |
+//   |                            | |       |
+//   |                            | |       |
+//   |     ---<---   from_ether <-+ |       |
+//   |     |                        |       |
+//   |     |                        |       |
+//   |     |                        |       |
+//   |   TX pin                 RX pin      |
+//   +--------------------------------------+
+//        |                     |
+//        |      (Pins side)    |
+//        |                     |
+//        o                     o
+//```
+//
+pub struct WirelessModuleDriver {
+    antennta_state: AntennaState,
+    from_antenna_buffer: VecDeque<u8>,
+    to_antenna_buffer: VecDeque<u8>,
+}
+
+impl WirelessModuleDriver {
     pub fn new() -> Self {
-        Self {
-            from_network_buffer: VecDeque::new(),
-            to_network_buffer: VecDeque::new(),
-            tick_byte_to_network: None,
-            tick_byte_from_network: None,
+        WirelessModuleDriver {
+            antennta_state: AntennaState::Idle,
+            from_antenna_buffer: VecDeque::new(),
+            to_antenna_buffer: VecDeque::new(),
         }
     }
 }
 
-impl IODriverSimulator for WiredModuleDriver {
+impl IODriverSimulator for WirelessModuleDriver {
     /// Testing to be sent to network
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// radio_driver.start_tick();
     /// assert_eq!(radio_driver.get_from_device_network_side(), None);
     /// radio_driver.end_tick();
@@ -63,13 +67,17 @@ impl IODriverSimulator for WiredModuleDriver {
     /// assert_eq!(radio_driver.get_from_device_network_side(), Some(b'a'));
     /// radio_driver.end_tick();
     /// ```
+    /// Testing some data put to queues to be sent to network
     fn get_from_device_network_side(&mut self) -> Option<u8> {
-        self.tick_byte_to_network.clone()
+        match self.antennta_state {
+            AntennaState::Transmit(byte) => Some(byte),
+            _ => None,
+        }
     }
 
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// radio_driver.start_tick();
     /// radio_driver.end_tick();
     /// assert_eq!(radio_driver.get_from_tx_pin(), None);
@@ -86,12 +94,17 @@ impl IODriverSimulator for WiredModuleDriver {
     /// ```
     /// Testing some data put to queues to be sent to network
     fn put_to_device_network_side(&mut self, byte: u8) {
-        self.tick_byte_from_network.replace(byte);
+        match self.antennta_state {
+            AntennaState::Transmit(_) => (),
+            AntennaState::Idle | AntennaState::Receive(_) => {
+                self.antennta_state = AntennaState::Receive(byte)
+            }
+        }
     }
 
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// radio_driver.start_tick();
     /// radio_driver.end_tick();
     /// assert_eq!(radio_driver.get_from_tx_pin(), None);
@@ -108,13 +121,13 @@ impl IODriverSimulator for WiredModuleDriver {
     /// ```
     /// Testing some data put to queues to be sent to network
     fn get_from_tx_pin(&mut self) -> Option<u8> {
-        self.from_network_buffer.pop_front()
+        self.from_antenna_buffer.pop_front()
     }
 
     /// Testing to be sent to network
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// radio_driver.start_tick();
     /// assert_eq!(radio_driver.get_from_device_network_side(), None);
     /// radio_driver.end_tick();
@@ -127,13 +140,12 @@ impl IODriverSimulator for WiredModuleDriver {
     /// ```
     /// Testing some data put to queues to be sent to network
     fn put_to_rx_pin(&mut self, byte: u8) {
-        self.to_network_buffer.push_back(byte);
+        self.to_antenna_buffer.push_back(byte);
     }
 
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
-    ///
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// assert_eq!(radio_driver.get_from_device_network_side(), None);
     ///
     /// radio_driver.put_to_rx_pin(b'a');
@@ -147,17 +159,15 @@ impl IODriverSimulator for WiredModuleDriver {
     /// radio_driver.end_tick();
     /// ```
     fn start_tick(&mut self) {
-        self.tick_byte_to_network = None;
-        self.tick_byte_from_network = None;
-
-        if let Some(byte) = self.to_network_buffer.pop_front() {
-            self.tick_byte_to_network = Some(byte);
-        }
+        self.antennta_state = match self.to_antenna_buffer.pop_front() {
+            Some(byte) => AntennaState::Transmit(byte),
+            _ => AntennaState::Idle,
+        };
     }
 
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// assert_eq!(radio_driver.get_from_device_network_side(), None);
     ///
     /// radio_driver.put_to_rx_pin(b'a');
@@ -171,15 +181,18 @@ impl IODriverSimulator for WiredModuleDriver {
     /// radio_driver.end_tick();
     /// ```
     fn end_tick(&mut self) {
-        if let Some(byte) = self.tick_byte_from_network.take() {
-            self.from_network_buffer.push_back(byte);
+        match self.antennta_state {
+            AntennaState::Receive(byte) => {
+                self.from_antenna_buffer.push_back(byte);
+            }
+            _ => (),
         }
-        self.tick_byte_to_network = None;
+        self.antennta_state = AntennaState::Idle;
     }
 
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// radio_driver.start_tick();
     /// radio_driver.end_tick();
     /// assert_eq!(radio_driver.readable(), false);
@@ -189,12 +202,12 @@ impl IODriverSimulator for WiredModuleDriver {
     /// assert_eq!(radio_driver.readable(), true);
     /// ```
     fn readable(&self) -> bool {
-        !self.from_network_buffer.is_empty()
+        !self.from_antenna_buffer.is_empty()
     }
 
     /// ```
-    /// use network_simulator::{IODriverSimulator, WiredModuleDriver};
-    /// let mut radio_driver = WiredModuleDriver::new();
+    /// use network_simulator::{IODriverSimulator, WirelessModuleDriver};
+    /// let mut radio_driver = WirelessModuleDriver::new();
     /// assert_eq!(radio_driver.writable(), true);
     /// ```
     fn writable(&self) -> bool {
@@ -202,17 +215,17 @@ impl IODriverSimulator for WiredModuleDriver {
     }
 }
 
-impl embedded_io::ErrorType for WiredModuleDriver {
+impl embedded_io::ErrorType for WirelessModuleDriver {
     type Error = core::convert::Infallible;
 }
 
-impl embedded_io::ReadReady for WiredModuleDriver {
+impl embedded_io::ReadReady for WirelessModuleDriver {
     fn read_ready(&mut self) -> Result<bool, Self::Error> {
         Ok(self.readable())
     }
 }
 
-impl embedded_io::Read for WiredModuleDriver {
+impl embedded_io::Read for WirelessModuleDriver {
     // Read from WirelessModuleDriver into buf
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let mut count_red: usize = 0;
@@ -226,7 +239,7 @@ impl embedded_io::Read for WiredModuleDriver {
     }
 }
 
-impl embedded_io::Write for WiredModuleDriver {
+impl embedded_io::Write for WirelessModuleDriver {
     // Write from buf into WirelessModuleDriver
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         let mut count_written: usize = 0;
@@ -243,12 +256,12 @@ impl embedded_io::Write for WiredModuleDriver {
 }
 
 #[cfg(test)]
-mod wired_modem_device_tests {
+mod radio_modem_device_tests {
     use super::*;
 
     #[test]
-    fn test_full_duplex_send_per_tick() {
-        let mut modem_device = WiredModuleDriver::new();
+    fn test_half_duplex_send_per_tick() {
+        let mut modem_device = WirelessModuleDriver::new();
         modem_device.start_tick();
         modem_device.put_to_device_network_side(b'a');
         modem_device.put_to_rx_pin(b'b');
@@ -265,11 +278,12 @@ mod wired_modem_device_tests {
     // Test data collision with overwriting data per same tick
     #[test]
     fn test_data_collision_per_tick() {
-        let mut modem_device = WiredModuleDriver::new();
+        let mut modem_device = WirelessModuleDriver::new();
         modem_device.start_tick();
         modem_device.put_to_device_network_side(b'a');
         modem_device.put_to_device_network_side(b'b');
+        modem_device.put_to_device_network_side(b'c');
         modem_device.end_tick();
-        assert_eq!(modem_device.get_from_tx_pin(), Some(b'b'));
+        assert_eq!(modem_device.get_from_tx_pin(), Some(b'c'));
     }
 }

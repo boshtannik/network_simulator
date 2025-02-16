@@ -1,5 +1,7 @@
-mod radio_modem;
 mod traits;
 mod wired_modem;
+mod wireless_modem;
 
-pub use {radio_modem::RadioModuleDriver, traits::IODriverSimulator, wired_modem::WiredModuleDriver};
+pub use {
+    traits::IODriverSimulator, wired_modem::WiredModuleDriver, wireless_modem::WirelessModuleDriver,
+};
