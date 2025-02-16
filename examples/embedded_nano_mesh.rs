@@ -16,7 +16,7 @@ fn main() {
     });
 
     let _ = node_1.send_to_exact(
-        NodeString::from_iter("This is the message from node 2".chars()).into_bytes(),
+        NodeString::from_iter("This is the message from node 1".chars()).into_bytes(),
         ExactAddressType::try_from(2).unwrap(),
         LifeTimeType::try_from(1).unwrap(),
         true,
