@@ -58,20 +58,20 @@ fn main() {
             expected_messages_count -= 1;
         }
 
-        let mut ref_arr = [&mut modem_1, &mut modem_2, &mut modem_3];
+        let mut modem_ref_arr = [&mut modem_1, &mut modem_2, &mut modem_3];
 
-        for modem in ref_arr.iter_mut() {
+        for modem in modem_ref_arr.iter_mut() {
             modem.start_tick();
         }
 
         {
-            let mut ether = Ether::new(&mut ref_arr);
+            let mut ether = Ether::new(&mut modem_ref_arr);
             ether.simulate();
         }
 
-        let mut ref_arr = [&mut modem_1, &mut modem_2, &mut modem_3];
+        let mut modem_ref_arr = [&mut modem_1, &mut modem_2, &mut modem_3];
 
-        for modem in ref_arr.iter_mut() {
+        for modem in modem_ref_arr.iter_mut() {
             modem.end_tick();
         }
 
