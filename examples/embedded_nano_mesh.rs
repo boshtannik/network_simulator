@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use embedded_nano_mesh::*;
+use embedded_nano_mesh::{ms, ExactAddressType, LifeTimeType, Node, NodeConfig, NodeString};
 use network_simulator::{Ether, IODriverSimulator, WirelessModuleDriver};
 
 fn main() {
@@ -50,9 +50,9 @@ fn main() {
         let _ = node_2.update(&mut modem_2, current_time);
         let _ = node_3.update(&mut modem_3, current_time);
 
-        if let Some(message) = node_2.receive() {
+        while let Some(message) = node_2.receive() {
             println!(
-                "Node 2 has the message: {}",
+                "Node 2 got the message: {}",
                 NodeString::from_iter(message.data.iter().map(|b| *b as char))
             );
             expected_messages_count -= 1;
