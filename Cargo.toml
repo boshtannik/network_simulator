@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 embedded-io = "0.6.1"
+embedded-nano-mesh = "2.1.0"
