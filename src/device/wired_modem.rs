@@ -41,16 +41,18 @@ pub struct WiredModemFake {
     tick_byte_to_network: Option<u8>,
     tick_byte_from_network: Option<u8>,
     tick_state: TickState,
+    name: String,
 }
 
 impl WiredModemFake {
-    pub fn new() -> Self {
+    pub fn new(name: &str) -> Self {
         Self {
             from_network_buffer: VecDeque::new(),
             to_network_buffer: VecDeque::new(),
             tick_byte_to_network: None,
             tick_byte_from_network: None,
             tick_state: TickState::OffTick,
+            name: String::from(name),
         }
     }
 }
@@ -229,6 +231,15 @@ impl IODriverSimulator for WiredModemFake {
     fn writable(&self) -> bool {
         true
     }
+
+    /// ```
+    /// use network_simulator::{IODriverSimulator, WiredModemFake};
+    /// let mut radio_driver = WiredModemFake::new("1");
+    /// assert_eq!(radio_driver.get_name(), "1");
+    /// ```
+    fn get_name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl embedded_io::ErrorType for WiredModemFake {
@@ -277,7 +288,7 @@ mod wired_modem_device_tests {
 
     #[test]
     fn test_full_duplex_send_per_tick() {
-        let mut modem_device = WiredModemFake::new();
+        let mut modem_device = WiredModemFake::new("");
         modem_device.start_tick();
         modem_device.put_to_device_network_side(b'a');
         modem_device.put_to_rx_pin(b'b');
@@ -294,7 +305,7 @@ mod wired_modem_device_tests {
     // Test data collision with overwriting data per same tick
     #[test]
     fn test_data_collision_per_tick() {
-        let mut modem_device = WiredModemFake::new();
+        let mut modem_device = WiredModemFake::new("");
         modem_device.start_tick();
         modem_device.put_to_device_network_side(b'a');
         modem_device.put_to_device_network_side(b'b');

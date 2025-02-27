@@ -14,4 +14,6 @@ pub trait IODriverSimulator {
     // Required methods for some interfaces
     fn readable(&self) -> bool;
     fn writable(&self) -> bool;
+
+    fn get_name(&self) -> &str;
 }
