@@ -4,5 +4,6 @@ mod wireless_modem;
 
 pub use {
     traits::IODriverSimulator,
-    /*wired_modem::WiredModemFake*/ wireless_modem::WirelessModemFake,
+    wireless_modem::WirelessModemFake,
+    /*wired_modem::WiredModemFake*/
 };

@@ -2,16 +2,16 @@ use std::sync::{Arc, Mutex};
 
 use crate::{device::IODriverSimulator, WirelessModemFake};
 
-pub struct EtherSimulator<IODrv: IODriverSimulator> {
+pub struct EtherSimulator {
     name: String,
-    devices: Vec<Arc<Mutex<IODrv>>>,
+    devices: Arc<Mutex<Vec<WirelessModemFake>>>,
 }
 
-impl<'a, IODrv: IODriverSimulator> EtherSimulator<IODrv> {
+impl EtherSimulator {
     pub fn new(name: &str) -> Self {
         Self {
             name: String::from(name),
-            devices: vec![],
+            devices: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -19,38 +19,40 @@ impl<'a, IODrv: IODriverSimulator> EtherSimulator<IODrv> {
         &self.name
     }
 
-    pub fn create_driver(&mut self, name: &str) -> Arc<Mutex<WirelessModemFake>>
-    where
-        IODrv: IODriverSimulator,
-    {
-        Arc::new(Mutex::new(WirelessModemFake::new(name)))
+    pub fn create_driver(name: &str) -> WirelessModemFake {
+        WirelessModemFake::new(name)
     }
 
-    pub fn register_driver(&mut self, driver: Arc<Mutex<IODrv>>) {
-        self.devices.push(driver);
+    pub fn register_driver(&mut self, driver: WirelessModemFake) {
+        let mut devices = self.devices.lock().expect("Fail to get lock on devices");
+        devices.push(WirelessModemFake::clone(&driver));
     }
 
     pub fn unregister_driver(&mut self, name: &str) {
+        let mut devices = self.devices.lock().expect("Fail to get lock on devices");
+
         loop {
             let mut index_to_remove: Option<_> = None;
 
-            for (i, device) in self.devices.iter_mut().enumerate() {
-                if device.lock().unwrap().get_name() == name {
+            for (i, device) in devices.iter_mut().enumerate() {
+                if device.get_name() == name {
                     index_to_remove.replace(i);
                 }
             }
 
             match index_to_remove {
-                Some(i) => self.devices.remove(i),
+                Some(i) => devices.remove(i),
                 None => break,
             };
         }
     }
 
-    pub fn get_driver(&mut self, name: &str) -> Option<Arc<Mutex<IODrv>>> {
-        for device in self.devices.iter() {
-            if device.lock().unwrap().get_name() == name {
-                return Some(Arc::clone(device));
+    pub fn get_driver(&self, name: &str) -> Option<WirelessModemFake> {
+        let devices = self.devices.lock().expect("Fail to get lock on devices");
+
+        for device in devices.iter() {
+            if device.get_name() == name {
+                return Some(WirelessModemFake::clone(&device));
             }
         }
         None
@@ -58,15 +60,12 @@ impl<'a, IODrv: IODriverSimulator> EtherSimulator<IODrv> {
 
     /// Gets the broadcasted byte from latest broadasting device.
     /// That is the place where the data collision is possible.
-    fn get_current_byte(&mut self) -> Option<u8> {
+    fn get_current_byte(&self) -> Option<u8> {
         let mut result: Option<u8> = None;
+        let devices = self.devices.lock().expect("Fail to get lock on devices");
 
-        for device in self.devices.iter() {
-            if let Some(byte) = device
-                .lock()
-                .expect("Fail to get lock on simulated device driver")
-                .get_from_device_network_side()
-            {
+        for device in devices.iter() {
+            if let Some(byte) = device.get_from_device_network_side() {
                 result = Some(byte);
             }
         }
@@ -77,35 +76,39 @@ impl<'a, IODrv: IODriverSimulator> EtherSimulator<IODrv> {
     // For better cross ether interference (producing data collisions) it is better to
     // start tick for all ethers at once, then simulate each ether then do end tick
     // for all ethers at once.
-    pub fn start_tick(&mut self) {
-        for device in self.devices.iter() {
-            device
-                .lock()
-                .expect("Fail to get lock to start modem tick")
-                .start_tick();
+    pub fn start_tick(&self) {
+        let devices = self.devices.lock().expect("Fail to get lock on devices");
+        for device in devices.iter() {
+            device.start_tick();
         }
     }
 
     // For better cross ether interference (producing data collisions) it is better to
     // start tick for all ethers at once, then simulate each ether then do end tick
     // for all ethers at once.
-    pub fn end_tick(&mut self) {
-        for device in self.devices.iter() {
-            device
-                .lock()
-                .expect("Fail to get lock to end modem tick")
-                .end_tick();
+    pub fn end_tick(&self) {
+        let devices = self.devices.lock().expect("Fail to get lock on devices");
+        for device in devices.iter() {
+            device.end_tick();
         }
     }
 
-    pub fn simulate(&mut self) {
-        if let Some(current_byte) = self.get_current_byte() {
-            for device in self.devices.iter() {
-                device
-                    .lock()
-                    .expect("Fail to get lock on simulated device driver")
-                    .put_to_device_network_side(current_byte);
+    pub fn simulate(&self) {
+        let current_byte = self.get_current_byte();
+
+        let devices = self.devices.lock().expect("Fail to get lock on devices");
+
+        if let Some(current_byte) = current_byte {
+            for device in devices.iter() {
+                device.put_to_device_network_side(current_byte);
             }
+        }
+    }
+
+    pub fn clone(&self) -> EtherSimulator {
+        EtherSimulator {
+            name: String::from(&self.name),
+            devices: Arc::clone(&self.devices),
         }
     }
 }

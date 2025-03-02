@@ -1,45 +1,47 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::RefCell,
+    ops::DerefMut,
+    sync::{Arc, Mutex},
+};
 
-use crate::{EtherSimulator, WirelessModemFake};
+use crate::EtherSimulator;
 
 pub struct NetworkSimulator {
-    ethers: Option<Vec<EtherSimulator<WirelessModemFake>>>,
+    ethers: RefCell<Option<Vec<EtherSimulator>>>,
     ms_per_tick: u64,
-    simulation_thread_handle:
-        Option<std::thread::JoinHandle<Vec<EtherSimulator<WirelessModemFake>>>>,
+    simulation_thread_handle: Option<std::thread::JoinHandle<Vec<EtherSimulator>>>,
     thread_killer: Arc<Mutex<bool>>,
 }
 
 impl NetworkSimulator {
     pub fn new(ms_per_tick: u64) -> Self {
         NetworkSimulator {
-            ethers: Some(Vec::new()),
+            ethers: RefCell::new(Some(Vec::new())),
             ms_per_tick,
             simulation_thread_handle: None,
             thread_killer: Arc::new(Mutex::new(false)),
         }
     }
 
-    pub fn create_ether(&mut self, name: &str) -> &mut EtherSimulator<WirelessModemFake> {
-        match &mut self.ethers {
-            Some(ethers) => {
+    pub fn create_ether(&self, name: &str) {
+        match self.ethers.borrow_mut().deref_mut() {
+            Some(ref mut ethers) => {
                 let new_ether = EtherSimulator::new(name);
                 ethers.push(new_ether);
             }
             None => {
                 panic!("Simulation thread is already started. Can not change configuration")
             }
-        }
-        self.get_ether(name).unwrap()
+        };
     }
 
-    pub fn get_ether(&mut self, name: &str) -> Option<&mut EtherSimulator<WirelessModemFake>> {
-        match self.ethers {
+    pub fn get_ether(&self, name: &str) -> Option<EtherSimulator> {
+        match self.ethers.borrow_mut().deref_mut() {
             None => panic!("Simulation thread is started. Can not get ether"),
-            Some(ref mut ethers) => {
-                for ether in ethers.iter_mut() {
+            Some(ref ethers) => {
+                for ether in ethers.iter() {
                     if ether.get_name() == name {
-                        return Some(ether);
+                        return Some(ether.clone());
                     }
                 }
                 None
@@ -52,6 +54,7 @@ impl NetworkSimulator {
             Some(_) => panic!("Simulation thread is already started"),
             None => {
                 let mut ethers = self.ethers.take().unwrap();
+
                 let ms_per_tick = self.ms_per_tick;
                 let thread_killer_clone = Arc::clone(&self.thread_killer);
 
@@ -82,7 +85,6 @@ impl NetworkSimulator {
     }
 
     pub fn stop_simulation_thread(&mut self) {
-        println!("Stopping");
         self.simulation_thread_handle = match self.simulation_thread_handle.take() {
             None => panic!("Simulation thread is not started"),
             Some(simulation_thread_handle) => {
@@ -90,14 +92,13 @@ impl NetworkSimulator {
                     .thread_killer
                     .lock()
                     .expect("Fail to get lock on thread killer") = true;
-                self.ethers.replace(
+                self.ethers.replace(Some(
                     simulation_thread_handle
                         .join()
                         .expect(" Fail to join simulation thread to get ethers back"),
-                );
+                ));
                 None
             }
         };
-        println!("Stopped");
     }
 }
