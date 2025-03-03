@@ -49,6 +49,45 @@ impl NetworkSimulator {
         }
     }
 
+    pub fn start_tick(&self) {
+        match self.ethers.borrow_mut().deref_mut() {
+            None => panic!(
+                "Simulation thread is started. Can not do start_tick and thread at the same time"
+            ),
+            Some(ref ethers) => {
+                for ether in ethers.iter() {
+                    ether.start_tick();
+                }
+            }
+        }
+    }
+
+    pub fn end_tick(&self) {
+        match self.ethers.borrow_mut().deref_mut() {
+            None => panic!(
+                "Simulation thread is started. Can not do start_tick and thread at the same time"
+            ),
+            Some(ref ethers) => {
+                for ether in ethers.iter() {
+                    ether.end_tick();
+                }
+            }
+        }
+    }
+
+    pub fn simulate(&self) {
+        match self.ethers.borrow_mut().deref_mut() {
+            None => panic!(
+                "Simulation thread is started. Can not do start_tick and thread at the same time"
+            ),
+            Some(ref ethers) => {
+                for ether in ethers.iter() {
+                    ether.simulate();
+                }
+            }
+        }
+    }
+
     pub fn start_simulation_thread(&mut self) {
         match self.simulation_thread_handle {
             Some(_) => panic!("Simulation thread is already started"),
