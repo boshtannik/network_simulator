@@ -13,6 +13,8 @@ pub struct NetworkSimulator {
     thread_killer: Arc<Mutex<bool>>,
 }
 
+/// NetworkSimulator is designed to simulate the network which consist of 1+ ethers.
+/// Each ether is instance of EtherSimulator
 impl NetworkSimulator {
     pub fn new(ms_per_tick: u64) -> Self {
         NetworkSimulator {
@@ -113,7 +115,11 @@ impl NetworkSimulator {
                         std::thread::sleep(std::time::Duration::from_millis(ms_per_tick));
                         for ether in ethers.iter_mut() {
                             ether.start_tick();
+                        }
+                        for ether in ethers.iter_mut() {
                             ether.simulate();
+                        }
+                        for ether in ethers.iter_mut() {
                             ether.end_tick();
                         }
                     }
