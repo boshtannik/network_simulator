@@ -245,7 +245,7 @@ mod radio_modem_device_tests {
 
     #[test]
     fn test_half_duplex_send_per_tick() {
-        let mut modem_device = WirelessModemFake::new("");
+        let modem_device = WirelessModemFake::new("");
         modem_device.start_tick();
         modem_device.put_to_device_network_side(b'a');
         modem_device.put_to_rx_pin(b'b');

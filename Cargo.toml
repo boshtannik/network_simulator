@@ -1,7 +1,14 @@
 [package]
 name = "network_simulator"
 version = "0.1.0"
+authors = ["Yevhen Shevchenko (boshtannik) <boshtannik@gmail.com>"]
 edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Lighweight network simulator to simulate bytes exchange between modems"
+readme = "README.md"
+repository = "https://github.com/boshtannik/network_simulator/"
+keywords = ["protocol", "network"]
+categories = ["network-programming"]
 
 [dependencies]
 embedded-io = "0.6.1"

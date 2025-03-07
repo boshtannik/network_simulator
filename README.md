@@ -5,6 +5,8 @@ Also it is easy to use and can be used it to write determenistic tests for your 
 or write your own protocols.
 
 This library simulates physical layer of networking like modems and ethers containing that modems.
+Note! That this simulator simulates only bytes transfering between the modems, and have no thing
+in common with such protocols as IP, TCP, UDP, etc. It is made to build or test ones.
 Currently wireless ethers and wireless modems are supported the most.
 
 ## Functionality that the simulator provides:
