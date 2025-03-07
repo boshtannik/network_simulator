@@ -19,8 +19,8 @@ Currently wireless ethers and wireless modems are supported the most.
 * You can use simulators update methods in your loop to have more determenistic simulaton or run simulator's internal update loop thread
   to force simulator update ethers and their modems automatically in the background.
 
-## Details
-To tell one part of simulated time from other - tick is invented.
+## Usage
+To tell one part of simulated time from other - tick is invented and it is essential.
 The use of simulator is next:
 
 Ether simulator transfers data between modems only in tick event.
@@ -36,8 +36,17 @@ Ether simulator transfers data between modems only in tick event.
                   * For each sender modem says that modem to stop broadcasting byte of that tick.
                   * For each receiver modem says that modem can grab received byte and store it into received bytes queue.
 ```
-
 You can call those methods by yourself or call `start_simulation_thread()` and `stop_simulation_thread()` respectively to make simulator do all job described above automatically.
+
+Simulator contains ethers.
+Ethers contains modems.
+
+To use it.
+1. You shall create simulator.
+2. You shall create ether.
+3. You shall create modem.
+4. You shall register your created modem in the ethers you want it to share.
+5. You shall update the simulator ticks by one of provided strategies above.
 
 ## The project is pretty fresh, and is welcomed to be extended by pull requests.
 * Virtual modems now supports only embedded-io traits, other traits are welcomed to be implemented also.
