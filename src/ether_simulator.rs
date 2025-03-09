@@ -15,19 +15,42 @@ impl EtherSimulator {
         }
     }
 
+    /// Gets the name of the ether
+    /// ```
+    /// use network_simulator::EtherSimulator;
+    /// let mut ether = EtherSimulator::new("my_ether");
+    /// assert_eq!(ether.get_name(), "my_ether");
+    /// ```
     pub fn get_name(&self) -> &str {
         &self.name
     }
 
-    pub fn create_driver(name: &str) -> WirelessModemFake {
-        WirelessModemFake::new(name)
-    }
-
+    /// Registers a new device (driver / modem)
+    /// ```
+    /// use network_simulator::EtherSimulator;
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let mut ether = EtherSimulator::new("my_ether");
+    /// ether.register_driver(WirelessModemFake::new("my_modem"));
+    /// assert_eq!(ether.get_driver("my_modem").unwrap().get_name(), "my_modem");
+    /// ```
     pub fn register_driver(&mut self, driver: WirelessModemFake) {
         let mut devices = self.devices.lock().expect("Fail to get lock on devices");
         devices.push(WirelessModemFake::clone(&driver));
     }
 
+    /// Unregisters a device
+    /// ```
+    /// use network_simulator::EtherSimulator;
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let mut ether = EtherSimulator::new("my_ether");
+    /// ether.register_driver(WirelessModemFake::new("my_modem"));
+    /// ether.unregister_driver("my_modem");
+    /// assert!(ether.get_driver("my_modem").is_none());
+    /// ```
     pub fn unregister_driver(&mut self, name: &str) {
         let mut devices = self.devices.lock().expect("Fail to get lock on devices");
 
@@ -47,6 +70,17 @@ impl EtherSimulator {
         }
     }
 
+    /// Gets a registered device
+    /// ```
+    /// use network_simulator::EtherSimulator;
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let mut ether = EtherSimulator::new("my_ether");
+    /// assert!(ether.get_driver("my_modem").is_none());
+    /// ether.register_driver(WirelessModemFake::new("my_modem"));
+    /// assert_eq!(ether.get_driver("my_modem").unwrap().get_name(), "my_modem");
+    /// ```
     pub fn get_driver(&self, name: &str) -> Option<WirelessModemFake> {
         let devices = self.devices.lock().expect("Fail to get lock on devices");
 
@@ -73,9 +107,7 @@ impl EtherSimulator {
         result
     }
 
-    // For better cross ether interference (producing data collisions) it is better to
-    // start tick for all ethers at once, then simulate each ether then do end tick
-    // for all ethers at once.
+    /// Prepares all the registered devices for starting of simulation during tick.
     pub fn start_tick(&self) {
         let devices = self.devices.lock().expect("Fail to get lock on devices");
         for device in devices.iter() {
@@ -83,9 +115,7 @@ impl EtherSimulator {
         }
     }
 
-    // For better cross ether interference (producing data collisions) it is better to
-    // start tick for all ethers at once, then simulate each ether then do end tick
-    // for all ethers at once.
+    /// Prepares all the registered devices for ending of simulation during tick.
     pub fn end_tick(&self) {
         let devices = self.devices.lock().expect("Fail to get lock on devices");
         for device in devices.iter() {
@@ -93,6 +123,7 @@ impl EtherSimulator {
         }
     }
 
+    /// This operation shall be called only during tick is active.
     pub fn simulate(&self) {
         let current_byte = self.get_current_byte();
 
@@ -105,6 +136,17 @@ impl EtherSimulator {
         }
     }
 
+    /// Clones itself.
+    /// Also makes all internal data shared to be able to use from multiple threads.
+    /// ```
+    /// use network_simulator::EtherSimulator;
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let mut ether = EtherSimulator::new("my_ether");
+    /// let ether_clone = ether.clone();
+    ///
+    /// assert_eq!(ether.get_name(), ether_clone.get_name());
     pub fn clone(&self) -> EtherSimulator {
         EtherSimulator {
             name: String::from(&self.name),

@@ -128,6 +128,23 @@ impl WirelessModemFake {
 }
 
 impl IODriverSimulator for WirelessModemFake {
+    /// Simulates that the modem emits a byte towards the ether
+    /// ```
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let device = WirelessModemFake::new("my_modem");
+    /// device.start_tick();
+    /// assert_eq!(device.get_from_device_network_side(), None);
+    /// device.end_tick();
+    ///
+    /// device.put_to_rx_pin(1);
+    ///
+    /// device.start_tick();
+    /// assert_eq!(device.get_from_device_network_side(), Some(1));
+    /// device.end_tick();
+    /// ```
+
     fn get_from_device_network_side(&self) -> Option<u8> {
         let locked_internal_state = self
             .arc_mutexed_internal_state
@@ -135,7 +152,7 @@ impl IODriverSimulator for WirelessModemFake {
             .expect(format!("Fail to lock mutex for modem :{}", self.name).as_str());
 
         match locked_internal_state.tick_state {
-            TickState::OffTick => None,
+            TickState::OffTick => panic!("Impossible to put_to_device_network_side. Device not in simulation mode. Simulation is within the tick. You shall start tick first."),
             TickState::InTick => match locked_internal_state.antennta_state {
                 AntennaState::Transmit(byte) => Some(byte),
                 _ => None,
@@ -143,6 +160,18 @@ impl IODriverSimulator for WirelessModemFake {
         }
     }
 
+    /// Simulates that the modem caught a byte from the ether
+    /// ```
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let device = WirelessModemFake::new("my_modem");
+    /// assert_eq!(device.get_from_tx_pin(), None);
+    /// device.start_tick();
+    /// device.put_to_device_network_side(1);
+    /// device.end_tick();
+    /// assert_eq!(device.get_from_tx_pin(), Some(1));
+    /// ```
     fn put_to_device_network_side(&self, byte: u8) {
         let mut locked_internal_state = self
             .arc_mutexed_internal_state
@@ -150,7 +179,7 @@ impl IODriverSimulator for WirelessModemFake {
             .expect(format!("Fail to lock mutex for modem :{}", self.name).as_str());
 
         match locked_internal_state.tick_state {
-            TickState::OffTick => (),
+            TickState::OffTick => panic!("Impossible to put_to_device_network_side. Device not in simulation mode. Simulation is within the tick. You shall start tick first."),
             TickState::InTick => match locked_internal_state.antennta_state {
                 AntennaState::Transmit(_) => (),
                 AntennaState::Idle | AntennaState::Receive(_) => {
@@ -160,6 +189,18 @@ impl IODriverSimulator for WirelessModemFake {
         }
     }
 
+    /// Reads a byte on the TX pin
+    /// ```
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let device = WirelessModemFake::new("my_modem");
+    /// assert_eq!(device.get_from_tx_pin(), None);
+    /// device.start_tick();
+    /// device.put_to_device_network_side(1);
+    /// device.end_tick();
+    /// assert_eq!(device.get_from_tx_pin(), Some(1));
+    /// ```
     fn get_from_tx_pin(&self) -> Option<u8> {
         let mut locked_internal_state = self
             .arc_mutexed_internal_state
@@ -169,6 +210,16 @@ impl IODriverSimulator for WirelessModemFake {
         locked_internal_state.from_antenna_buffer.pop_front()
     }
 
+    /// Writes a byte on the RX pin
+    /// ```
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    ///
+    /// let device = WirelessModemFake::new("my_modem");
+    /// device.put_to_rx_pin(1);
+    /// device.start_tick();
+    /// assert_eq!(device.get_from_device_network_side(), Some(1));
+    /// device.end_tick();
     fn put_to_rx_pin(&self, byte: u8) {
         let mut locked_internal_state = self
             .arc_mutexed_internal_state
@@ -178,6 +229,8 @@ impl IODriverSimulator for WirelessModemFake {
         locked_internal_state.to_antenna_buffer.push_back(byte);
     }
 
+    /// Tick is needed only for simulating time during which ineraction with the ether is going.
+    /// Other operations like put to pin or get from pin can be done not in tick.
     fn start_tick(&self) {
         let mut locked_internal_state = self
             .arc_mutexed_internal_state
@@ -198,6 +251,8 @@ impl IODriverSimulator for WirelessModemFake {
         }
     }
 
+    /// Tick is needed only for simulating time during which ineraction with the ether is going.
+    /// Other operations like put to pin or get from pin can be done not in tick.
     fn end_tick(&self) {
         let mut locked_internal_state = self
             .arc_mutexed_internal_state
@@ -221,6 +276,18 @@ impl IODriverSimulator for WirelessModemFake {
         }
     }
 
+    /// Tells if the device has some bytes to be red from pin
+    /// ```
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    /// let mut device = WirelessModemFake::new("");
+    /// assert!(
+    /// !device.readable());
+    /// device.start_tick();
+    /// device.put_to_device_network_side(1);
+    /// device.end_tick();
+    /// assert!(device.readable());
+    /// ```
     fn readable(&self) -> bool {
         let locked_internal_state = self
             .arc_mutexed_internal_state
@@ -230,10 +297,23 @@ impl IODriverSimulator for WirelessModemFake {
         !locked_internal_state.from_antenna_buffer.is_empty()
     }
 
+    /// Tells if the device is ready to be written in
+    /// ```
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    /// assert!(WirelessModemFake::new("").writable());
+    /// ```
     fn writable(&self) -> bool {
         true
     }
 
+    /// Returns the name of the device
+    /// ```
+    /// use network_simulator::WirelessModemFake;
+    /// use network_simulator::IODriverSimulator;
+    /// let device = WirelessModemFake::new("my_modem");
+    /// assert_eq!(device.get_name(), "my_modem");
+    /// ```
     fn get_name(&self) -> &str {
         &self.name
     }
