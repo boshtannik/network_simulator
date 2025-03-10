@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use embedded_nano_mesh::{ms, ExactAddressType, Node, NodeConfig, NodeString};
-use network_simulator::{NetworkSimulator, WirelessModemFake};
+use proto_lab::{NetworkSimulator, WirelessModemFake};
 
 const NODE_1_LISTEN_PERIOD: ms = 1;
 const NODE_2_LISTEN_PERIOD: ms = 1;

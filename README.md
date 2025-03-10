@@ -1,56 +1,100 @@
-# Network simulator
-## Simple stupid network simulator
-This simulator is made as ground tool to develop / test of my protocols.
-Also it is easy to use and can be used it to write determenistic tests for your protocols
-or write your own protocols.
+# proto-lab  
+## **Lightweight & Deterministic Network Protocol Simulator**  
 
-This library simulates physical layer of networking like modems and ethers containing that modems.
-Note! That this simulator simulates only bytes transfering between the modems, and have no thing
-in common with such protocols as IP, TCP, UDP, etc. It is made to build or test ones.
-Currently wireless ethers and wireless modems are supported the most.
+**proto-lab** is a simple yet powerful simulator designed for developing and testing **custom networking protocols** without requiring physical hardware. It provides a deterministic environment for automated testing, protocol experimentation, and multi-threaded simulations.  
 
-## Functionality that the simulator provides:
-* Lets develop protocols with no need for actual hardware.
-* Lets buld automated testing scenarious.
-* Simulates data collision when more than one modem are broadcasting into same environment at the same tick.
-* Supports groups of modems working simultaneously in one or several ethers at the time.
-* One modem can occupy more than one ether. It lets to simulate scenario of data being transferred by chain of simulated devices.
-* Can simulate scenario of modem being fell of the environment during broadcasting or being hot plugged to existing environment.
-* Provides interface to write multithread code with using several modems in the same ether by different threads.
-  As the modem can be clonned by call it's clone method and then sent into another thread. Internally modem shares the state with it's clones.
-* You can use simulators update methods in your loop to have more determenistic simulaton or run simulator's internal update loop thread
-  to force simulator update ethers and their modems automatically in the background.
+This library simulates the **physical layer** of networking, including **modems** and **ethers** that connect them.  
+📢 **Note:** proto-lab **only** handles raw **byte transmission** between modems—it does **not** implement IP, TCP, UDP, or any higher-layer protocols. Instead, it serves as a **foundation** for building and testing such protocols.  
 
-## Usage
-To tell one part of simulated time from other - tick is invented and it is essential.
-The use of simulator is next:
+### **Key Features**  
+- 🛠 **Develop & test protocols** without needing real hardware.  
+- 🧪 **Automate testing scenarios** with full deterministic control.  
+- ⚡ **Simulate data collisions** when multiple modems transmit in the same ether at the same tick.  
+- 📡 **Multi-ether support** – Modems can operate across multiple ethers at once.  
+- 🔗 **Chained data transfer** – Simulate multi-hop data relay across devices.  
+- 🔄 **Dynamic topology** – Simulate modems being **hot-plugged** or **removed** mid-transmission.  
+- 🧵 **Thread-safe modem cloning** – Clone modems to different threads while sharing state.  
+- ⏳ **Flexible tick-based updates** – Control simulation timing manually or run in **automatic background mode**.  
 
-Ether simulator transfers data between modems only in tick event.
+---
+
+## **How It Works**  
+proto-lab operates in **discrete ticks**, ensuring **deterministic simulation behavior**:  
+
+1. **Start a Tick** → `start_tick()` initializes transmission & listening states for modems.  
+2. **Simulate a Step** → `simulate()` processes modem transmissions and delivers bytes to listening modems.  
+3. **End a Tick** → `stop_tick()` finalizes transmission, queues received bytes, and prepares for the next step.  
+
+You can control ticks manually or let proto-lab handle updates via `start_simulation_thread()` and `stop_simulation_thread()`.  
+
+### **Simulation Process in Detail**  
+
+    start_tick() - Begins a new tick cycle:
+        Iterates through all modems in ethers.
+        Each sender modem prepares bytes for transmission.
+        Each receiver modem enters listening mode.
+
+    simulate() - Runs the simulation step:
+        Identifies broadcasting modems.
+        Transfers broadcasted bytes to all listening modems.
+
+    stop_tick() - Ends the tick cycle:
+        Iterates through all modems in ethers.
+        Each sender modem stops broadcasting.
+        Each receiver modem queues received bytes.
+
+
+---
+
+## **Full Example: Simulating a Mesh Network**
+proto-lab seamlessly integrates into complex network simulations, including **mesh protocols**.  
+Below is a simplified example demonstrating **multi-ether communication** and **node interaction**:
+
+```rust
+use proto_lab::{NetworkSimulator, WirelessModemFake};
+
+fn main() {
+    let mut simulator = NetworkSimulator::new(1);
+
+    simulator.create_ether("1");
+    simulator.create_ether("2");
+
+    let mut driver_1 = WirelessModemFake::new("1");
+    let mut driver_2 = WirelessModemFake::new("2");
+    let mut driver_3 = WirelessModemFake::new("3");
+
+    simulator.get_ether("1").unwrap().register_driver(driver_1.clone());
+    simulator.get_ether("1").unwrap().register_driver(driver_2.clone());
+
+    simulator.get_ether("2").unwrap().register_driver(driver_2.clone());
+    simulator.get_ether("2").unwrap().register_driver(driver_3.clone());
+
+    simulator.start_simulation_thread();
+
+    // Example: Simulating communication between nodes...
+    // For full example look into examples directory...
+
+    simulator.stop_simulation_thread();
+
+    println!("Simulation completed!");
+}
 ```
-* start tick - call simulators start_tick() method. It does the following:
-                  * iterates trough all modems in ethers.
-                  * For each sender modem says that modem can grab stacked bytes that are ready to be sent.
-                  * For each receiver modem says that modem goes into listening state.
-* simulate    - then you call simulate() method of simulator. this does the follwing:
-                  * Looks for modems are currently broadcasting byte, grabs that byte and transfers it to other modems that are in listening state.
-* end tick    - then you can call simulators stop_tick() method to stop tick. It does the following:
-                  * iterates trough all modems in ethers.
-                  * For each sender modem says that modem to stop broadcasting byte of that tick.
-                  * For each receiver modem says that modem can grab received byte and store it into received bytes queue.
-```
-You can call those methods by yourself or call `start_simulation_thread()` and `stop_simulation_thread()` respectively to make simulator do all job described above automatically.
 
-Simulator contains ethers.
-Ethers contains modems.
+Getting Started
 
-To use it.
-1. You shall create simulator.
-2. You shall create ether.
-3. You shall create modem.
-4. You shall register your created modem in the ethers you want it to share.
-5. You shall update the simulator ticks by one of provided strategies above.
+    Add proto-lab to your Cargo.toml:
 
-## The project is pretty fresh, and is welcomed to be extended by pull requests.
-* Virtual modems now supports only embedded-io traits, other traits are welcomed to be implemented also.
+    [dependencies]
+    proto-lab = "0.1"
 
-## License GPL v3.0
+    Explore the API and start building your protocol simulations.
+    Run tests and fine-tune your protocol logic with deterministic control.
+
+Contribute
+
+proto-lab is a fresh project, and contributions are welcome! Feel free to submit pull requests, report issues, or suggest new features.
+
+🛠 Note: Currently, virtual modems support only embedded-io traits. Contributions adding support for other traits are encouraged!
+License
+
+proto-lab is released under the GPL v3.0 license.
